@@ -1,6 +1,13 @@
 #include <iostream>
 #include <vector>
 #include <filesystem>
+#include <unistd.h>
+#include <sys/types.h>
+#include <pwd.h>
+
+passwd *pw = getpwuid(getuid());
+
+const char *homedir = pw->pw_dir;
 
 namespace fs = std::filesystem;
 using namespace std;
@@ -27,52 +34,69 @@ void getWords(string const& s, vector<string> &words)
 
 int main()
 {
-    string input;
+    string input, output, home;
+    for (int i(0); homedir[i] != '\0'; i++)
+        home += homedir[i];
+    cout << home << "/" << home.size() << endl;
     vector<string> words;
-    fs::path path("/"), prev(path), temp;
+    fs::path path(homedir), prev(path), temp;
+    string shell("bash");
     while (true)
     {
-        cout << path << "$ ";
+        output = ((path.native().size() >= home.size()) && (path.native().substr(0, home.size()) == home)) ? "~" + path.native().substr(home.size()) : path.native();
+        if (shell == "zsh")
+            cout << "\033[0;44m  " << output<<" \033[0;34m \033[0m";
+        else
+            cout << "\033[1;34m" << output << "\033[0m$ ";
         getline(cin, input);
         getWords(input, words);
-        switch (words.size())
+        if (words.size() == 1)
         {
-            case 1:
-                if (words[0] == "cd")
+            if (words[0] == "cd")
+            {
+                prev = path;
+                path = homedir;
+            }
+            else if (words[0] == "ls")
+            {
+                for (auto el: fs::directory_iterator(path))
+                    cout << el << endl;
+            }
+        }
+        else if (words.size() == 2)
+        {
+            if (words[0] == "cd")
+            {   
+                if (words[1] == "~")
                 {
                     prev = path;
-                    path = "/";
+                    path = home;
                 }
-                break;
-            case 2:
-                if (words[0] == "cd")
+                else
                 {
-                    if (words[1] == "..")
+                    temp = path;
+                    path.append(words[1]);
+                    if (fs::exists(path))
+                        prev = temp;
+                    else
                     {
-                        prev = path;
-                        path = path.parent_path();
-                    }
-                    else if (words[1] == "-")
-                    {
-                        temp = prev;
-                        prev = path;
                         path = temp;
-                    }
-                    else if (words[1] != ".")
-                    {
-                        temp = path;
-                        path.append(words[1]);
-                        if (fs::exists(path))
-                        {
-                            prev = temp;
-                        }
-                        else
-                        {
-                            path = temp;
-                            cout << "Incorrect path" << endl;
-                        }
+                        cout << "Incorrect path" << endl;
                     }
                 }
+            }
+            else if (words[0] == "set-shell")
+            {
+                if (words[1] == "bash")
+                    shell = "bash";
+                else if (words[1] == "zsh")
+                    shell = "zsh";
+                else
+                    cout << "Incorrect shell" << endl;
+            }
         }
+        path = path.lexically_normal().native();
+        while (path.string().size() > 1 && path.string()[path.string().size() - 1] == '/')
+            path = path.string().substr(0, path.string().size() - 1);
     }
 }
