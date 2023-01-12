@@ -37,7 +37,6 @@ int main()
     string input, output, home;
     for (int i(0); homedir[i] != '\0'; i++)
         home += homedir[i];
-    cout << home << "/" << home.size() << endl;
     vector<string> words, entries;
     fs::path path(homedir), prev(path), temp;
     string shell("bash");
@@ -60,8 +59,10 @@ int main()
             else if (words[0] == "ls")
             {
                 entries.clear();
-                for (fs::directory_entry entry: fs::directory_iterator(path))
-                    entries.push_back(entry.path().filename().string() + (entry.is_directory() ? "/" : ""));
+                for (fs::directory_entry entry: fs::directory_iterator(path)) {
+                    if (entry.path().has_filename() && entry.path().filename().string()[0] != '.')   
+                        entries.push_back(entry.is_directory() ? "\033[1;34m" + entry.path().filename().string() + "\033[0m" : "\033[0;32m" + entry.path().filename().string() + "\033[0m");
+                }
                 if (entries.size() < 8)
                     for (int i(0); i < entries.size(); i++)
                         cout << entries[i] << " ";
